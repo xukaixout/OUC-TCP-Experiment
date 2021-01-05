@@ -14,7 +14,7 @@ import com.ouc.tcp.tool.TCP_TOOL;
 public class TCP_Receiver extends TCP_Receiver_ADT {
 
 	private TCP_PACKET ackPack; // 回复的ACK报文段
-	int sequence = 1;// 用于记录当前待接收的包序号，注意包序号不完全是
+	int lastSequence = -1;// 用于记录当前待接收的包序号，注意包序号不完全是
 
 	/* 构造函数 */
 	public TCP_Receiver() {
@@ -35,13 +35,16 @@ public class TCP_Receiver extends TCP_Receiver_ADT {
 			reply(ackPack);
 
 			// 将接收到的正确有序的数据插入data队列，准备交付
+			int currentSequence = (recvPack.getTcpH().getTh_seq() - 1) / 100;
+			if (currentSequence != lastSequence)
+				lastSequence = currentSequence;
+
 			dataQueue.add(recvPack.getTcpS().getData());
-			sequence++;
 		} else {
 			System.out.println("Recieve Computed: " + CheckSum.computeChkSum(recvPack));
 			System.out.println("Recieved Packet" + recvPack.getTcpH().getTh_sum());
-			System.out
-					.println("Problem: Packet Number: " + recvPack.getTcpH().getTh_seq() + " + InnerSeq:  " + sequence);
+			System.out.println(
+					"Problem: Packet Number: " + recvPack.getTcpH().getTh_seq() + " + InnerSeq:  " + lastSequence);
 			tcpH.setTh_ack(-1);
 			ackPack = new TCP_PACKET(tcpH, tcpS, recvPack.getSourceAddr());
 			tcpH.setTh_sum(CheckSum.computeChkSum(ackPack));

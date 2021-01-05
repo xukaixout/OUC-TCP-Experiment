@@ -75,8 +75,14 @@ public class TCP_Sender extends TCP_Sender_ADT {
 	@Override
 	// 接收到ACK报文：检查校验和，将确认号插入ack队列;NACK的确认号为－1；不需要修改
 	public void recv(TCP_PACKET recvPack) {
-		System.out.println("Receive ACK Number： " + recvPack.getTcpH().getTh_ack());
-		ackQueue.add(recvPack.getTcpH().getTh_ack());
+		System.out.println();
+		if (CheckSum.computeChkSum(recvPack) == recvPack.getTcpH().getTh_sum()) {
+			System.out.println("Receive ACK Number： " + recvPack.getTcpH().getTh_ack());
+			ackQueue.add(recvPack.getTcpH().getTh_ack());
+		} else {
+			System.out.println("Receive corrupt ACK: " + recvPack.getTcpH().getTh_ack());
+			ackQueue.add(-1);
+		}
 		System.out.println();
 
 		// 处理ACK报文
