@@ -1,5 +1,3 @@
-/***************************2.1: ACK/NACK*****************/
-/***** Feng Hong; 2015-12-09******************************/
 package com.ouc.tcp.test;
 
 import java.io.BufferedWriter;
@@ -46,18 +44,7 @@ public class TCP_Receiver extends TCP_Receiver_ADT {
 				if (dataQueue.size() == 20)
 					deliver_data();
 			}
-
-		} else {
-			System.out.println();
-			System.out.println("ACK last sequence: " + lastSequence);
-			System.out.println();
-			tcpH.setTh_ack(lastSequence * 100 + 1);
-			ackPack = new TCP_PACKET(tcpH, tcpS, recvPack.getSourceAddr());
-			tcpH.setTh_sum(CheckSum.computeChkSum(ackPack));
-			// 回复ACK报文段
-			reply(ackPack);
 		}
-
 		System.out.println();
 
 	}
@@ -85,7 +72,6 @@ public class TCP_Receiver extends TCP_Receiver_ADT {
 			}
 			writer.close();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
@@ -94,7 +80,7 @@ public class TCP_Receiver extends TCP_Receiver_ADT {
 	// 回复ACK报文段
 	public void reply(TCP_PACKET replyPack) {
 		// 设置错误控制标志
-		tcpH.setTh_eflag((byte) 1); // eFlag=0，信道无错误
+		tcpH.setTh_eflag((byte) 4); // eFlag=0，信道无错误
 
 		// 发送数据报
 		client.send(replyPack);
