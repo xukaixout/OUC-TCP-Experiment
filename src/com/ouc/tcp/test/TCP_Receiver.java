@@ -31,21 +31,27 @@ public class TCP_Receiver extends TCP_Receiver_ADT {
 			tcpH.setTh_ack(recvPack.getTcpH().getTh_seq());
 			ackPack = new TCP_PACKET(tcpH, tcpS, recvPack.getSourceAddr());
 			tcpH.setTh_sum(CheckSum.computeChkSum(ackPack));
+			System.out.println();
+			System.out.println("ACK: " + recvPack.getTcpH().getTh_seq());
+			System.out.println();
 			// 回复ACK报文段
 			reply(ackPack);
 
 			// 将接收到的正确有序的数据插入data队列，准备交付
 			int currentSequence = (recvPack.getTcpH().getTh_seq() - 1) / 100;
-			if (currentSequence != lastSequence)
+			if (currentSequence != lastSequence) {
 				lastSequence = currentSequence;
+				dataQueue.add(recvPack.getTcpS().getData());
+				// 交付数据（每20组数据交付一次）
+				if (dataQueue.size() == 20)
+					deliver_data();
+			}
 
-			dataQueue.add(recvPack.getTcpS().getData());
 		} else {
-			System.out.println("Recieve Computed: " + CheckSum.computeChkSum(recvPack));
-			System.out.println("Recieved Packet" + recvPack.getTcpH().getTh_sum());
-			System.out.println(
-					"Problem: Packet Number: " + recvPack.getTcpH().getTh_seq() + " + InnerSeq:  " + lastSequence);
-			tcpH.setTh_ack(-1);
+			System.out.println();
+			System.out.println("ACK last sequence: " + lastSequence);
+			System.out.println();
+			tcpH.setTh_ack(lastSequence * 100 + 1);
 			ackPack = new TCP_PACKET(tcpH, tcpS, recvPack.getSourceAddr());
 			tcpH.setTh_sum(CheckSum.computeChkSum(ackPack));
 			// 回复ACK报文段
@@ -54,9 +60,6 @@ public class TCP_Receiver extends TCP_Receiver_ADT {
 
 		System.out.println();
 
-		// 交付数据（每20组数据交付一次）
-		if (dataQueue.size() == 20)
-			deliver_data();
 	}
 
 	@Override
