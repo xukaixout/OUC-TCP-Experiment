@@ -21,3 +21,7 @@
 ## RDT 3.0
 
 通道上可能出错和丢失数据
+
+## RDT 4.0
+
+Selective-Response
