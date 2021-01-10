@@ -112,9 +112,10 @@ public class TCP_Sender extends TCP_Sender_ADT {
 	}
 
 	public void resend() {
-		cwnd = 1;
 		ssthresh = (short) (cwnd / 2);
-		udt_send(pkt_queue.peek());
+		cwnd = 1;
+		if (pkt_queue.size() > 0)
+			udt_send(pkt_queue.peek());
 	}
 
 }
