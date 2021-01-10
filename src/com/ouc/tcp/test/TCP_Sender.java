@@ -84,7 +84,7 @@ public class TCP_Sender extends TCP_Sender_ADT {
 				udt_send(pkt);
 				cwnd = (short) (cwnd / 2);
 				cwnd_cnt = 0;
-				ssthresh = (short) Math.max(ssthresh / 2, 2);
+				ssthresh = (short) Math.max(cwnd, 2);
 			}
 		} else if (nowACK >= queueHead) {
 			for (int i = 0; i < nowACK - queueHead + 1; ++i)
