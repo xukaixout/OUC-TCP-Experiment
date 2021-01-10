@@ -20,7 +20,7 @@ public class TCP_Sender extends TCP_Sender_ADT {
 	private volatile int queueHead;
 	private int ACKcount;
 	private RenoTimer task;
-	private int taskTimeLen = 300;
+	private int taskTimeLen = 3000;
 
 	public TCP_Sender() {
 		super();
@@ -37,7 +37,7 @@ public class TCP_Sender extends TCP_Sender_ADT {
 		while (nextSequence >= queueHead + cwnd)
 			;
 		System.out.println("cwnd: " + cwnd);
-		System.out.println("size: " + (nextSequence - queueHead));
+		System.out.println("size: " + pkt_queue.size());
 		System.out.println("ssthresh: " + ssthresh);
 		tcpS.setData(appData);
 		tcpPack = new TCP_PACKET(tcpH, tcpS, destinAddr);
