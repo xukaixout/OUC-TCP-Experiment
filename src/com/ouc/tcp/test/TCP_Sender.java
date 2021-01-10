@@ -1,130 +1,121 @@
 package com.ouc.tcp.test;
 
-import com.ouc.tcp.client.Client;
+import java.util.Queue;
+import java.util.concurrent.LinkedBlockingQueue;
+
 import com.ouc.tcp.client.TCP_Sender_ADT;
-import com.ouc.tcp.client.UDT_RetransTask;
 import com.ouc.tcp.client.UDT_Timer;
-import com.ouc.tcp.message.*;
+import com.ouc.tcp.message.TCP_PACKET;
 
 public class TCP_Sender extends TCP_Sender_ADT {
 
-	private TCP_PACKET tcpPack; // 待发送的TCP数据报
-	private volatile int flag = 1;
+	private TCP_PACKET tcpPack;
+	private TCP_PACKET rcvPack;
+	private UDT_Timer timer;
+	private int nextSequence;
+	private short cwnd = 1;
+	private short cwnd_cnt = 0;
+	private short ssthresh = 16;
+	private Queue<TCP_PACKET> pkt_queue;
+	private int queueHead;
+	private int ACKcount;
+	private RenoTimer task;
+	private int taskTimeLen = 500;
 
-	private SenderSlidingWindow window = new SenderSlidingWindow(client);
-
-	/* 构造函数 */
 	public TCP_Sender() {
-		super(); // 调用超类构造函数
-		super.initTCP_Sender(this); // 初始化TCP发送端
+		super();
+		super.initTCP_Sender(this);
+		timer = new UDT_Timer();
+		pkt_queue = new LinkedBlockingQueue<TCP_PACKET>();
+		nextSequence = 1;
+		queueHead = 1;
+		ACKcount = 0;
 	}
 
 	@Override
-	// 可靠发送（应用层调用）：封装应用层数据，产生TCP数据报；需要修改
 	public void rdt_send(int dataIndex, int[] appData) {
-
-		// 生成TCP数据报（设置序号和数据字段/校验和),注意打包的顺序
-		tcpH.setTh_seq(dataIndex * appData.length + 1);// 包序号设置为字节流号：
+		while (nextSequence >= queueHead + cwnd)
+			;
 		tcpS.setData(appData);
 		tcpPack = new TCP_PACKET(tcpH, tcpS, destinAddr);
-
+		tcpH.setTh_seq(nextSequence);
 		tcpH.setTh_sum(CheckSum.computeChkSum(tcpPack));
 		tcpPack.setTcpH(tcpH);
-		if (window.isFull()) {
-			System.out.println();
-			System.out.println("Waiting for Sliding Window...");
-			System.out.println();
-			flag = 0;
-		}
-		while (flag == 0)
-			;
 		try {
-			window.insert_pkt(tcpPack.clone());
+			if (pkt_queue.size() < cwnd)
+				pkt_queue.offer(tcpPack.clone());
+			else
+				System.out.println("Queue is full!");
 		} catch (CloneNotSupportedException e) {
 			e.printStackTrace();
 		}
-		// 发送TCP数据报
 		udt_send(tcpPack);
+		if (queueHead == nextSequence) {
+			task = new RenoTimer(this, pkt_queue);
+			timer.schedule(task, taskTimeLen, taskTimeLen);
+		}
+		nextSequence++;
 	}
 
 	@Override
-	// 不可靠发送：将打包好的TCP数据报通过不可靠传输信道发送；仅需修改错误标志
+	public void recv(TCP_PACKET recvPack) {
+		System.out.println("Receive ACK Number: " + recvPack.getTcpH().getTh_ack());
+		if (CheckSum.computeChkSum(recvPack) == recvPack.getTcpH().getTh_sum()) {
+			rcvPack = recvPack;
+			waitACK();
+		} else {
+			System.out.println("ACK Checksum Error!");
+		}
+	}
+
+	@Override
 	public void udt_send(TCP_PACKET stcpPack) {
-		// 设置错误控制标志
 		tcpH.setTh_eflag((byte) 7);
-		// System.out.println("to send: "+stcpPack.getTcpH().getTh_seq());
-		// 发送数据报
 		client.send(stcpPack);
 	}
 
 	@Override
-	// 需要修改
 	public void waitACK() {
-	}
-
-	@Override
-	// 接收到ACK报文：检查校验和，将确认号插入ack队列;NACK的确认号为－1；不需要修改
-	public void recv(TCP_PACKET recvPack) {
-		System.out.println();
-		if (CheckSum.computeChkSum(recvPack) == recvPack.getTcpH().getTh_sum()) {
-			System.out.println("Receive ACK Number： " + recvPack.getTcpH().getTh_ack());
-			window.recv_ACK((recvPack.getTcpH().getTh_ack() - 1) / 100);
-			if (!window.isFull())
-				flag = 1;
-		}
-		// 处理ACK报文
-		waitACK();
-	}
-
-}
-
-class SenderSlidingWindow {
-	private Client client;
-	private int size = 16;
-	private int base = 0;
-	private int nextIndex = 0;
-	private TCP_PACKET[] packets = new TCP_PACKET[size];
-	private UDT_Timer[] timers = new UDT_Timer[size];
-
-	public SenderSlidingWindow(Client cli) {
-		client = cli;
-	}
-
-	public boolean isFull() {
-		return size <= nextIndex;
-	}
-
-	public void insert_pkt(TCP_PACKET packet) {
-		packets[nextIndex] = packet;
-		timers[nextIndex] = new UDT_Timer();
-		timers[nextIndex].schedule(new UDT_RetransTask(client, packet), 500, 500);
-		nextIndex++;
-	}
-
-	public void recv_ACK(int currentSequence) {
-		if (base <= currentSequence && currentSequence < base + size) {
-			if (timers[currentSequence - base] == null)
-				return;
-			timers[currentSequence - base].cancel();
-			timers[currentSequence - base] = null;
-		}
-		if (currentSequence == base) {
-			int maxACKedIndex = 0;
-			while (maxACKedIndex + 1 < nextIndex && timers[maxACKedIndex + 1] == null)
-				maxACKedIndex++;
-
-			for (int i = 0; maxACKedIndex + 1 + i < size; i++) {
-				packets[i] = packets[maxACKedIndex + 1 + i];
-				timers[i] = timers[maxACKedIndex + 1 + i];
+		int nowACK = rcvPack.getTcpH().getTh_ack();
+		if (nowACK == queueHead - 1) {
+			if (++ACKcount == 3) {
+				TCP_PACKET pkt = pkt_queue.peek();
+				System.out.println("3-ACK, resending pkt: " + pkt.getTcpH().getTh_seq());
+				udt_send(pkt);
+				cwnd = (short) (cwnd / 2.0);
+				cwnd_cnt = 0;
+				ssthresh = (short) Math.max(ssthresh / 2, 2);
 			}
-
-			for (int i = size - (maxACKedIndex + 1); i < size; i++) {
-				packets[i] = null;
-				timers[i] = null;
+		} else if (nowACK >= queueHead) {
+			for (int i = 0; i < nowACK - queueHead + 1; ++i)
+				pkt_queue.poll();
+			ACKcount = 1;
+			queueHead = nowACK + 1;
+			ackQueue.add(rcvPack.getTcpH().getTh_ack());
+			task.cancel();
+			if (queueHead != nextSequence) {
+				task = new RenoTimer(this, pkt_queue);
+				timer.schedule(task, taskTimeLen, taskTimeLen);
 			}
-
-			base += maxACKedIndex + 1;
-			nextIndex -= maxACKedIndex + 1;
+			if (cwnd >= ssthresh) {
+				cwnd_cnt++;
+				if (cwnd_cnt == cwnd) {
+					cwnd++;
+					cwnd_cnt = 0;
+				}
+			} else {
+				cwnd++;
+			}
+		} else {
+			System.out.println("Outdated ACK received!");
 		}
 	}
+
+	public void resend(TCP_PACKET pkt) {
+		cwnd = 1;
+		ssthresh = (short) (cwnd / 2);
+		udt_send(pkt);
+		queueHead = pkt.getTcpH().getTh_seq();
+	}
+
 }
