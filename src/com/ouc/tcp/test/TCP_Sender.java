@@ -36,6 +36,9 @@ public class TCP_Sender extends TCP_Sender_ADT {
 	public void rdt_send(int dataIndex, int[] appData) {
 		while (nextSequence >= queueHead + cwnd)
 			;
+		System.out.println("cwnd: " + cwnd);
+		System.out.println("size: " + (nextSequence - queueHead));
+		System.out.println("ssthresh: " + ssthresh);
 		tcpS.setData(appData);
 		tcpPack = new TCP_PACKET(tcpH, tcpS, destinAddr);
 		tcpH.setTh_seq(nextSequence);
@@ -112,7 +115,7 @@ public class TCP_Sender extends TCP_Sender_ADT {
 	}
 
 	public void resend() {
-		ssthresh = (short) (cwnd / 2);
+		ssthresh = (short) Math.max(cwnd / 2, 2);
 		cwnd = 1;
 		if (pkt_queue.size() > 0)
 			udt_send(pkt_queue.peek());
