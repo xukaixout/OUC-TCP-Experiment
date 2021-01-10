@@ -36,18 +36,18 @@ public class TCP_Sender extends TCP_Sender_ADT {
 	public void rdt_send(int dataIndex, int[] appData) {
 		while (nextSequence >= queueHead + cwnd)
 			;
-		System.out.println("cwnd: " + cwnd);
-		System.out.println("size: " + pkt_queue.size());
-		System.out.println("ssthresh: " + ssthresh);
 		tcpS.setData(appData);
 		tcpPack = new TCP_PACKET(tcpH, tcpS, destinAddr);
 		tcpH.setTh_seq(nextSequence);
 		tcpH.setTh_sum(CheckSum.computeChkSum(tcpPack));
 		tcpPack.setTcpH(tcpH);
 		try {
-			if (pkt_queue.size() < cwnd)
+			if (pkt_queue.size() < cwnd) {
 				pkt_queue.offer(tcpPack.clone());
-			else
+				System.out.println("cwnd: " + cwnd);
+				System.out.println("size: " + pkt_queue.size());
+				System.out.println("ssthresh: " + ssthresh);
+			} else
 				System.out.println("Queue is full!");
 		} catch (CloneNotSupportedException e) {
 			e.printStackTrace();
