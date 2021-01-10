@@ -20,7 +20,7 @@ public class TCP_Sender extends TCP_Sender_ADT {
 	private int queueHead;
 	private int ACKcount;
 	private RenoTimer task;
-	private int taskTimeLen = 500;
+	private int taskTimeLen = 300;
 
 	public TCP_Sender() {
 		super();
@@ -51,7 +51,7 @@ public class TCP_Sender extends TCP_Sender_ADT {
 		}
 		udt_send(tcpPack);
 		if (queueHead == nextSequence) {
-			task = new RenoTimer(this, pkt_queue);
+			task = new RenoTimer(this);
 			timer.schedule(task, taskTimeLen, taskTimeLen);
 		}
 		nextSequence++;
@@ -78,11 +78,11 @@ public class TCP_Sender extends TCP_Sender_ADT {
 	public void waitACK() {
 		int nowACK = rcvPack.getTcpH().getTh_ack();
 		if (nowACK == queueHead - 1) {
-			if (++ACKcount == 3) {
+			if (++ACKcount == 4) {
 				TCP_PACKET pkt = pkt_queue.peek();
 				System.out.println("3-ACK, resending pkt: " + pkt.getTcpH().getTh_seq());
 				udt_send(pkt);
-				cwnd = (short) (cwnd / 2.0);
+				cwnd = (short) (cwnd / 2);
 				cwnd_cnt = 0;
 				ssthresh = (short) Math.max(ssthresh / 2, 2);
 			}
@@ -94,7 +94,7 @@ public class TCP_Sender extends TCP_Sender_ADT {
 			ackQueue.add(rcvPack.getTcpH().getTh_ack());
 			task.cancel();
 			if (queueHead != nextSequence) {
-				task = new RenoTimer(this, pkt_queue);
+				task = new RenoTimer(this);
 				timer.schedule(task, taskTimeLen, taskTimeLen);
 			}
 			if (cwnd >= ssthresh) {
@@ -111,11 +111,10 @@ public class TCP_Sender extends TCP_Sender_ADT {
 		}
 	}
 
-	public void resend(TCP_PACKET pkt) {
+	public void resend() {
 		cwnd = 1;
 		ssthresh = (short) (cwnd / 2);
-		udt_send(pkt);
-		queueHead = pkt.getTcpH().getTh_seq();
+		udt_send(pkt_queue.peek());
 	}
 
 }
