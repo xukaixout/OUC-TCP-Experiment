@@ -12,12 +12,12 @@ public class TCP_Sender extends TCP_Sender_ADT {
 	private TCP_PACKET tcpPack;
 	private TCP_PACKET rcvPack;
 	private UDT_Timer timer;
-	private int nextSequence;
-	private short cwnd = 1;
+	private volatile int nextSequence;
+	private volatile short cwnd = 1;
 	private short cwnd_cnt = 0;
 	private short ssthresh = 16;
 	private Queue<TCP_PACKET> pkt_queue;
-	private int queueHead;
+	private volatile int queueHead;
 	private int ACKcount;
 	private RenoTimer task;
 	private int taskTimeLen = 300;
